@@ -1,0 +1,20 @@
+Circuit: * Z:\mnt\design.r\spice\examples\1355.asc
+
+Direct Newton iteration for .op point succeeded.
+
+Date: Sat Dec 24 17:34:16 2022
+Total elapsed time: 0.027 seconds.
+
+tnom = 27
+temp = 27
+method = trap
+totiter = 36
+traniter = 0
+tranpoints = 0
+accept = 0
+rejected = 0
+matrix size = 22
+fillins = 23
+solver = Normal
+Matrix Compiler1:      99 opcodes
+Matrix Compiler2:     176 opcodes
