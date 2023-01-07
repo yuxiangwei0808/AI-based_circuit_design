@@ -40,14 +40,16 @@ component_types = [
 
 subcircuit_types = {}
 script_dir = os.path.dirname(os.path.realpath(__file__))
+
+
 # FIXME: uncomment below to re-enable labels for subcircuits
 # with open(os.path.join(script_dir, 'subcircuit-types.txt'), 'r') as f:
-    # subcircuit_label_pairs = (line.split(' ') for line in f if len(line.split(' ')) == 2)
-    # for (subcircuit, label) in subcircuit_label_pairs:
-        # label = label.strip()
-        # subcircuit_types[subcircuit] = label
-        # if label not in component_types:
-            # component_types.append(label)
+# subcircuit_label_pairs = (line.split(' ') for line in f if len(line.split(' ')) == 2)
+# for (subcircuit, label) in subcircuit_label_pairs:
+# label = label.strip()
+# subcircuit_types[subcircuit] = label
+# if label not in component_types:
+# component_types.append(label)
 
 def get_component_type_index(element):
     element_type = type(element)
@@ -63,7 +65,7 @@ def components(circuit):
         if element not in component_list:
             component_list.append(element)
 
-        nodes = [ pin.node for pin in element.pins ]
+        nodes = [pin.node for pin in element.pins]
         for node in nodes:
             if node not in component_list:
                 component_list.append(node)
@@ -82,7 +84,7 @@ def netlist_as_graph(textfile):
         if element_id not in adj:
             adj[element_id] = []
 
-        nodes = [ pin.node for pin in element.pins ]
+        nodes = [pin.node for pin in element.pins]
         node_ids = [component_list.index(node) for node in nodes]
         adj[element_id].extend(node_ids)
 
@@ -90,9 +92,10 @@ def netlist_as_graph(textfile):
             if node_id not in adj:
                 adj[node_id] = []
             adj[node_id].append(element_id)
-    
+
     g = nx.Graph(nx.from_dict_of_lists(adj))
     return component_list, g
+
 
 def get_nodes_edges(circuit):
     component_list = components(circuit)
@@ -101,16 +104,18 @@ def get_nodes_edges(circuit):
     for element in circuit.elements:
         element_id = component_list.index(element)
 
-        nodes = [ pin.node for pin in element.pins ]
+        nodes = [pin.node for pin in element.pins]
         node_ids = [component_list.index(node) for node in nodes]
-        edges.extend([ (element_id, node_id, {'pin': i}) for (i, node_id) in enumerate(node_ids) ])
+        edges.extend([(element_id, node_id, {'pin': i}) for (i, node_id) in enumerate(node_ids)])
 
-    nodes = [ (i, {'component': component}) for (i, component) in enumerate(component_list) ]
+    nodes = [(i, {'component': component}) for (i, component) in enumerate(component_list)]
     return nodes, edges
 
+
 def valid_netlist_sources(files):
-    netlists = ( open(f, 'rb').read().decode('utf-8', 'ignore') for f in files )
-    return ( text for text in netlists if is_valid_netlist(text) )
+    netlists = (open(f, 'rb').read().decode('utf-8', 'ignore') for f in files)
+    return (text for text in netlists if is_valid_netlist(text))
+
 
 def is_valid_netlist(textfile, name=None):
     try:
@@ -122,22 +127,25 @@ def is_valid_netlist(textfile, name=None):
             print(f'invalid spice file: {name}', file=sys.stderr)
         return False
 
+
 def component_index_name(idx):
     component = component_types[idx]
     if type(component) is not str:
         return component.__name__
     return component
 
+
 def ensure_no_nan(tensor):
     nan_idx = torch.isnan(tensor).nonzero(as_tuple=True)
     nan_count = nan_idx[0].shape[0]
     assert nan_count == 0, 'nodes contain nans'
 
+
 def to_networkx(dataset):
     graphs = []
     for sgraph in dataset:
         node_count = sgraph.x.shape[0]
-        nodes = ( (i, {'node_feature': torch.tensor(sgraph.x[i])}) for i in range(node_count) )
+        nodes = ((i, {'node_feature': torch.tensor(sgraph.x[i])}) for i in range(node_count))
         graph = nx.Graph()
         graph.add_nodes_from(nodes)
 
@@ -148,16 +156,17 @@ def to_networkx(dataset):
         if 2 * edge_count != len(edges):
             print('edges', edges)
             print('(sorted) edges:')
-            print(sorted([ sorted(edge) for edge in edges], key=lambda p: p[0] + p[1]/100))
+            print(sorted([sorted(edge) for edge in edges], key=lambda p: p[0] + p[1] / 100))
             print('graph.edges:')
-            print(sorted([ sorted(edge) for edge in graph.edges], key=lambda p: p[0] + p[1]/100))
-            #print(graph.edges)
+            print(sorted([sorted(edge) for edge in graph.edges], key=lambda p: p[0] + p[1] / 100))
+            # print(graph.edges)
 
         print('expected count:', len(edges), f'({2 * edge_count})')
         assert 2 * edge_count == len(edges), f'Expected {len(edges)} edges. Found {edge_count}'
         graphs.append(graph)
 
     return graphs
+
 
 def to_deepsnap(dataset):
     if 'to_deepsnap' in dir(dataset):

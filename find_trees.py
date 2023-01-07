@@ -1,3 +1,5 @@
+import networkx as nx
+
 def _expand(G, explored_nodes, explored_edges):
     """
     Expand existing solution by a process akin to BFS.
