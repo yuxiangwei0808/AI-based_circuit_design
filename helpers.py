@@ -6,6 +6,7 @@ from PySpice.Spice.Netlist import Node
 import os
 import torch
 import deepsnap.graph
+from prefixed import Float
 
 component_types = [
     'unknown',
@@ -94,6 +95,66 @@ def netlist_as_graph(textfile):
             adj[node_id].append(element_id)
 
     g = nx.Graph(nx.from_dict_of_lists(adj))
+    return component_list, g
+
+
+def netlist_to_graph(textfile):
+    '''This func revises netlist_as_graph as the original func considers each element as a node'''
+    parser = SpiceParser(source=textfile)
+    circuit = parser.build_circuit()
+    component_list = components(circuit)
+
+    node_list = []
+    for c in component_list:
+        if isinstance(c, Node):
+            node_list.append(c)
+
+    adj = {}
+    element_metadata = {}
+    for element in circuit.elements:
+        element_id = component_list.index(element)
+        element_value = str(element).split(' ')[-1]
+        element_type = str(type(element)).strip("'>")
+        element_type = element_type.split('.')[-1]
+
+        if element_id not in adj:
+            adj[element_id] = []
+
+        nodes = [pin.node for pin in element.pins]
+        node_ids = [component_list.index(node) for node in nodes]
+        adj[element_id].extend(node_ids)
+
+        element_metadata[element_id] = [element_type, element_value]
+        element_metadata[element_id].append([n for n in node_ids])
+
+        for node_id in node_ids:
+            if node_id not in adj:
+                adj[node_id] = []
+            adj[node_id].append(element_id)
+
+    node_ids = [component_list.index(n) for n in node_list]
+    component_ids = [component_list.index(c) for c in component_list if c not in node_list]
+    adj_node = {}
+    for i in node_ids:
+        adj_node[i] = adj[i]
+        tmp = []
+        for j in adj_node[i]:
+            if j in component_ids:
+                c_j = adj[j]
+                c_j = [k for k in c_j if k != i]
+                tmp.extend(c_j)
+            else:
+                tmp.append(j)
+        adj_node[i] = tmp
+
+    g = nx.Graph(nx.from_dict_of_lists(adj_node))
+
+    for k in element_metadata:
+        metadata = element_metadata[k]
+        edge = metadata[-1]
+        value = Float(metadata[1])
+        g.edges[edge[0], edge[1]][metadata[0]] = value
+
     return component_list, g
 
 

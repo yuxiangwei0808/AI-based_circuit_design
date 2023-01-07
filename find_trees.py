@@ -31,7 +31,8 @@ def _expand(G, explored_nodes, explored_edges):
 
     return zip([explored_nodes | frozenset([v]) for v in frontier_nodes], [explored_edges | frozenset(e) for e in frontier_edges])
 
-def find_all_spanning_trees(G, root=0):
+
+def find_all_spanning_trees(G):
     """
     Find all spanning trees of a Graph.
 
@@ -45,7 +46,7 @@ def find_all_spanning_trees(G, root=0):
         list of all spanning trees
 
     """
-
+    root = list(G.nodes())[0]
     # initialise solution
     explored_nodes = frozenset([root])
     explored_edges = frozenset([])
