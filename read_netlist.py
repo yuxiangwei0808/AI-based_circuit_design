@@ -7,7 +7,7 @@ from find_trees import find_all_spanning_trees
 
 # path = "./data/ltspice_examples/"
 # files = [path+f for f in listdir(path) if isfile(join(path, f))]
-files = ['./test.net']
+files = ['./figure30.net']
 netlists = ((f, open(f, 'rb').read().decode('utf-8', 'ignore')) for f in files)
 
 valid_files = [(f, src) for (f, src) in netlists if h.is_valid_netlist(src)]
@@ -16,7 +16,7 @@ index = 0
 for (f, src) in valid_files:
         # print(f)
         component_list, g = h.netlist_to_graph(src)
-        t = find_all_spanning_trees(g)
+        t = g.find_single_tree()
         graph_data[index] = (component_list, g)
         index +=1
         

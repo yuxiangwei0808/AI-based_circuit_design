@@ -6,7 +6,9 @@ from PySpice.Spice.Netlist import Node
 import os
 import torch
 import deepsnap.graph
-from prefixed import Float
+
+from advance_graph import AdvanceGraph
+from find_trees import find_all_two_trees
 
 component_types = [
     'unknown',
@@ -148,13 +150,9 @@ def netlist_to_graph(textfile):
         adj_node[i] = tmp
 
     g = nx.Graph(nx.from_dict_of_lists(adj_node))
-
-    for k in element_metadata:
-        metadata = element_metadata[k]
-        edge = metadata[-1]
-        value = Float(metadata[1])
-        g.edges[edge[0], edge[1]][metadata[0]] = value
-
+    g = AdvanceGraph(g, element_metadata)
+    tree = g.find_single_tree()
+    t = g.find_two_tree(tree, [[2], [6]])
     return component_list, g
 
 
