@@ -63,11 +63,30 @@ def find_all_spanning_trees(G):
     return [nx.from_edgelist(edges) for (nodes, edges) in solutions]
 
 
-def validate_two_tree(g, excluded_pairs):
+def _validate_two_tree(g, valid_trees: list, excluded_pairs: list):
+    """
+    Check if the two nodes in the excluded pairs are separated in the graph and the graph has not been found
+
+    Arguments:
+    ----------
+    g: networkx.Graph() instance
+        graph to be checked
+    valid_trees: list of networkx.Graph() instances
+        list of valid trees
+    excluded_pairs: list of tuples
+        node pairs that should be separated in the graph
+
+    Returns:
+    ----------
+    bool: True if the two nodes are separated, False otherwise
+    """
     for p in excluded_pairs:
         if nx.has_path(g, p[0], p[1]):
-            return 0
-    return 1
+            return False
+    for tree in valid_trees:
+        if nx.utils.graphs_equal(tree, g):
+            return False
+    return True
 
 
 def find_all_two_trees(G, trees: list, node_pair: list):
@@ -93,14 +112,18 @@ def find_all_two_trees(G, trees: list, node_pair: list):
     valid_trees = []
     for tree in trees:
         edges = list(tree.edges())
-        flag = [True for e in edges if sorted(e) in excluded_pair]
-        if not len(flag):
+        flag = [e for e in edges if sorted(e) in excluded_pair]  # edges that are illegal
+        if len(flag) == 0:
             for edge in edges:
                 tmp = tree.copy()
                 tmp.remove_edge(edge[0], edge[1])
-                fg = validate_two_tree(tmp, excluded_pair)
-                if fg:
+                if _validate_two_tree(tmp, valid_trees, excluded_pair):
                     valid_trees.append(tmp)
+        elif len(flag) == 1:
+            tree.remove_edges_from(flag)
+            if _validate_two_tree(tree, valid_trees, excluded_pair):
+                valid_trees.append(tree)
+
     return valid_trees
 
 

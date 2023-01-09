@@ -151,8 +151,6 @@ def netlist_to_graph(textfile):
 
     g = nx.Graph(nx.from_dict_of_lists(adj_node))
     g = AdvanceGraph(g, element_metadata)
-    tree = g.find_single_tree()
-    t = g.find_two_tree(tree, [[2], [6]])
     return component_list, g
 
 

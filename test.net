@@ -1,8 +1,0 @@
-* C:\Users\Marshall\Desktop\test.asc
-V1 Vin 0 20
-R1 Vin Vout 90k
-R2 Vout 0 10k
-.tf V(Vout) V1
-.backanno
-.end
-
