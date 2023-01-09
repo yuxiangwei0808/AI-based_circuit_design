@@ -1,7 +1,8 @@
 from collections import Counter
 from sympy import symbols, simplify, Pow
+from prefixed import Float
 
-from find_trees import find_all_spanning_trees, find_all_two_trees
+from find_trees import find_all_spanning_trees_mp, find_all_spanning_trees, find_all_two_trees
 
 s = symbols('s')
 
@@ -43,12 +44,12 @@ class AdvanceGraph(object):
         return find_all_two_trees(self.graph, tree, excluded_pair)
 
     def _find_component_value(self, edge: tuple):
-        s = {'Resistor': 0, 'BehavioralCapacitor': 1, 'BasicElement.BehavioralInductor': -1}
+        s = {'Resistor': 0, 'BehavioralCapacitor': 1, 'BehavioralInductor': -1}
         component_value = []
         for k in self.metadata:
             m = self.metadata[k]
             if Counter(m[-1]) == Counter(edge):
-                component_value.append([float(m[1]), s[m[0]]])
+                component_value.append([Float(m[1]), s[m[0]]])
         return component_value
 
     def _product(self, args, repeat=1):
