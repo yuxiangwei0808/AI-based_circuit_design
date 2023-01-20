@@ -4,6 +4,7 @@ from prefixed import Float
 from lcapy import Circuit, sexpr, impedance
 
 from find_trees import find_all_spanning_trees_mp, find_all_spanning_trees, find_all_two_trees
+from utils import *
 
 s = symbols('s')
 
@@ -74,9 +75,7 @@ class AdvanceCircuit(Circuit):
                 address of the netlist file
         """
         self.networkx_graph = self.circuit_graph().G.copy()
-        for node in list(self.circuit_graph().nodes):
-            if '*' in node:
-                self.networkx_graph.remove_node(node)
+        self._remove_dummy_node()
 
     def compute_tree_product(self, tree: list):
         """only support R, C, L"""
@@ -132,6 +131,32 @@ class AdvanceCircuit(Circuit):
         for prod in result:
             yield tuple(prod)
 
+    def _connect_two_nodes(self, node_pair: tuple, component_metadata: tuple):
+        self = connect_two_node(self, node_pair, component_metadata)
+        self._update_networkx()
+
+    def _insert_new_node(self, node_pair: tuple, component_metadata: tuple):
+        self = insert_new_node(self, node_pair, component_metadata)
+        self._update_networkx()
+
+    def _remove_dummy_node(self):
+        for node in list(self.circuit_graph().nodes):
+            if '*' in node:
+                self.networkx_graph.remove_node(node)
+
+    def _find_component_by_nodes(self, node_pair: tuple):
+        for c in self.elements.keys():
+            component = self.elements[c]
+            if not component.is_voltage_source:
+                if set(component.relnodes) == set(node_pair):
+                    return component.relnodes, component.relname, component
+        print('no component between the nodes')
+        raise Exception
+
+    def _update_networkx(self):
+        self.networkx_graph = self.circuit_graph().G.copy()
+        self._remove_dummy_node()
+
     @property
     def _component_metadata(self):
         """use dict to store all components' metadata"""
@@ -141,16 +166,7 @@ class AdvanceCircuit(Circuit):
                 component = self.elements[c]
                 nodes = component.relnodes
                 name, c_type = component.name, component.type
-                if c_type == 'R':
-                    value = component.R
-                elif c_type == 'L':
-                    value = component.L
-                elif c_type == 'C':
-                    value = component.C
-                elif c_type == 'V':
-                    value = component.V
-                else:
-                    raise NotImplementedError
+                value = get_value(component)
                 if component in metadata.keys():
                     raise Exception
                 metadata[c] = [nodes, c_type, value]
@@ -161,6 +177,7 @@ class AdvanceCircuit(Circuit):
 if __name__ == '__main__':
     file_name = './raw_netlist/figure30.net'
     advance_circuit = AdvanceCircuit(file_name)
+    advance_circuit._insert_new_node(('N001', 'N002'), ('R4', 1.6))
     tree = advance_circuit.find_single_tree()
     value = advance_circuit.compute_tree_product(tree)
     print(1)
