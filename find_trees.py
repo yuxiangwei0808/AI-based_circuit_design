@@ -116,6 +116,8 @@ def find_all_spanning_trees(G):
         list of all spanning trees
 
     """
+    t_0, t_1 = 0, 0
+    import time
     root = list(G.nodes())[0]
     # initialise solution
     explored_nodes = frozenset([root])

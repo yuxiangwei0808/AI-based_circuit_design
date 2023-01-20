@@ -8,7 +8,7 @@ from find_trees import find_all_spanning_trees
 
 path = "./data/ltspice_examples/"
 files = [path+f for f in listdir(path) if isfile(join(path, f))]
-# files = ['./raw_netlist/figure26.net']
+files = ['./raw_netlist/figure26.net']
 netlists = ((f, open(f, 'rb').read().decode('utf-8', 'ignore')) for f in files)
 
 valid_files = [(f, src) for (f, src) in netlists if h.is_valid_netlist(src)]
