@@ -1,7 +1,10 @@
 from collections import Counter
 from sympy import symbols, simplify, Pow
 from prefixed import Float
-from lcapy import Circuit, sexpr, impedance
+from lcapy import Circuit, sexpr, admittance
+import copy
+import networkx as nx
+import matplotlib.pyplot as plt
 
 from find_trees import find_all_spanning_trees_mp, find_all_spanning_trees, find_all_two_trees
 from utils import *
@@ -77,6 +80,9 @@ class AdvanceCircuit(Circuit):
         self.networkx_graph = self.circuit_graph().G.copy()
         self._remove_dummy_node()
 
+        self.single_tree = None
+        self.two_tree = {}
+
     def compute_tree_product(self, tree: list):
         """only support R, C, L"""
         total_sum = 0
@@ -98,27 +104,57 @@ class AdvanceCircuit(Circuit):
                 # total_sum += pr * Pow(s, po)
         return total_sum
 
-    def find_single_tree(self):
-        return find_all_spanning_trees(self.networkx_graph)
+    def find_two_tree(self, excluded_pair):
+        if self.single_tree is None:
+            self.single_tree = self._find_single_tree()
+        if str(sorted(excluded_pair)) in self.two_tree.keys():
+            return self.two_tree[str(sorted(excluded_pair))]
+        else:
+            tree = copy.deepcopy(self.single_tree)
+            t = find_all_two_trees(self.networkx_graph, tree, excluded_pair)
+            self.two_tree[str(sorted(excluded_pair))] = t
+            return t
 
-    def find_two_tree(self, tree, excluded_pair):
-        return find_all_two_trees(self.networkx_graph, tree, excluded_pair)
+    def deepcopy(self):
+        new = self.copy()
+        new = AdvanceCircuit(str(new))
+        return new
+
+    def connect_two_nodes(self, node_pair: list, component_metadata: list):
+        self = connect_two_node(self, node_pair, component_metadata)
+        self._update_networkx()
+
+    def insert_new_node(self, node_pair: list, component_metadata: list):
+        self = insert_new_node(self, node_pair, component_metadata)
+        self._update_networkx()
+
+    def change_element_connection(self, element, new_pair):
+        value = self._component_metadata[element][-1]
+        self = change_element_connection(self, element, new_pair, value)
+        self._update_networkx()
+
+    def alter_component_value(self, component, value):
+        nodes = self._component_metadata[component][0]
+        ist = [component, nodes[0], nodes[1], str(value)]
+        ist = ' '.join(ist)
+        self.add(ist)
 
     def _find_component_value(self, edge: tuple):
+        # find component admittance
         component_value = []
-        for k in self._component_metadata:
-            m = self._component_metadata[k]
-            if m[1] != 'V':
-                if Counter(m[0]) == Counter(edge):
-                    if m[1] == 'R':
-                        name = str(m[-1])
-                    elif m[1] == 'C':
-                        name = str(m[-1]) + '/s'
-                    elif m[1] == 'L':
-                        name = str(m[-1]) + '*s'
-                    else:
-                        raise NotImplementedError
-                    component_value.append(impedance(sexpr(name)))
+        pair = str(sorted(edge))
+        names = self._edge_nodes_metadata[pair]
+        for name in names:
+            m = self._component_metadata[name]
+            if m[1] == 'R':
+                name = '1/(' + str(m[-1]) + ')'
+            elif m[1] == 'C':
+                name = str(m[-1]) + '*s'
+            elif m[1] == 'L':
+                name = '1/(' + str(m[-1]) + ')/s'
+            else:
+                raise NotImplementedError
+            component_value.append(admittance(sexpr(name)))
         return component_value
 
     def _product(self, args, repeat=1):
@@ -131,13 +167,8 @@ class AdvanceCircuit(Circuit):
         for prod in result:
             yield tuple(prod)
 
-    def _connect_two_nodes(self, node_pair: tuple, component_metadata: tuple):
-        self = connect_two_node(self, node_pair, component_metadata)
-        self._update_networkx()
-
-    def _insert_new_node(self, node_pair: tuple, component_metadata: tuple):
-        self = insert_new_node(self, node_pair, component_metadata)
-        self._update_networkx()
+    def _find_single_tree(self):
+        return find_all_spanning_trees(self.networkx_graph)
 
     def _remove_dummy_node(self):
         for node in list(self.circuit_graph().nodes):
@@ -159,29 +190,47 @@ class AdvanceCircuit(Circuit):
 
     @property
     def _component_metadata(self):
-        """use dict to store all components' metadata"""
+        """use dict to store all components' metadata, currently exclude source"""
         metadata = {}
         for c in self.elements.keys():
             if len(self.elements[c].nodenames) > 1:
                 component = self.elements[c]
                 nodes = component.relnodes
                 name, c_type = component.name, component.type
+                assert c_type != 'V'
                 value = get_value(component)
                 if component in metadata.keys():
                     raise Exception
                 metadata[c] = [nodes, c_type, value]
-
         return metadata
+
+    @property
+    def _edge_nodes_metadata(self):
+        """return the nodes and the corresponding edge (component)"""
+        metadata = {}
+        for c in self.elements:
+            if len(self.elements[c].nodenames) > 1:
+                component = self.elements[c]
+                nodes = sorted(component.nodenames)
+                if str(nodes) in metadata:
+                    metadata[str(nodes)].append(c)
+                else:
+                    metadata[str(nodes)] = [c]
+        return metadata
+
+    @property
+    def num_components(self):
+        """return the number of components (R, L, C)"""
+        return len(self._component_metadata)
+
+    @property
+    def component_list(self):
+        """return the list of components"""
+        return [x for x in self._component_metadata.keys()]
 
 
 if __name__ == '__main__':
-    file_name = './raw_netlist/figure30.net'
+    file_name = './raw_netlist/figure26.net'
     advance_circuit = AdvanceCircuit(file_name)
-    advance_circuit._insert_new_node(('N001', 'N002'), ('R4', 1.6))
-    tree = advance_circuit.find_single_tree()
-    value = advance_circuit.compute_tree_product(tree)
-    print(1)
-
-
-
+    tf = transfer_func(advance_circuit, [['0'], ['NC_01']], [['0'], ['N002']])
 

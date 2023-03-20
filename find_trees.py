@@ -1,6 +1,6 @@
 import os
 import networkx as nx
-from itertools import product
+from utils import nodes_product
 import multiprocessing as mp
 from joblib import Parallel, delayed
 
@@ -116,7 +116,6 @@ def find_all_spanning_trees(G):
         list of all spanning trees
 
     """
-    t_0, t_1 = 0, 0
     import time
     root = list(G.nodes())[0]
     # initialise solution
@@ -177,7 +176,7 @@ def find_all_two_trees(G, trees: list, node_pair: list):
         list of all spanning trees
 
     """
-    excluded_pair = list(product(node_pair[0], node_pair[1]))
+    excluded_pair = nodes_product([node_pair[0], node_pair[1]])
     excluded_pair = [sorted(x) for x in excluded_pair]
     valid_trees = []
     for tree in trees:
