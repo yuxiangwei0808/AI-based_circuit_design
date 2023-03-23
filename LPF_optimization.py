@@ -10,7 +10,7 @@ Vout is set to be the voltage across node N002 and node 0.
 from advance_graph import AdvanceCircuit
 
 from lcapy import *
-from utils import transfer_func, encode_circuit, differential_circuits, select_population
+from utils import transfer_func, encode_circuit, differential_circuits, select_population, print_min_fitness
 import numpy as np
 import random
 from sympy import Piecewise, symbols
@@ -149,7 +149,7 @@ def topology_opt(population, population_metadata, max_iter=100, recombination_ra
     return population, population_metadata
 
 
-def parameter_opt(population, population_metadata, pop_size_per_topo=100, per_topo_iter=100, recombination_rate=0.5):
+def parameter_opt(population, population_metadata, pop_size_per_topo=50, per_topo_iter=50, recombination_rate=0.5):
     """perform parameter optimization for each topology"""
     population_new, population_metadata_new = {}, {}
     for label in population_metadata:
@@ -231,18 +231,23 @@ def optimization(init_circuit, init_pop_size):
         init_population_metadata[label][-1][label_parameter].append(fitness)
         init_population.update({label_parameter: [new_circuit, fitness]})
 
-    population, population_metadata = topology_opt(init_population, init_population_metadata, max_iter=100)
+    population, population_metadata = topology_opt(init_population, init_population_metadata, max_iter=50)
     population, population_metadata = parameter_opt(population, population_metadata)
+    print_min_fitness(population)
 
-    fitness_overall = list(population.values())
-    fitness_overall = [x[-1] for x in fitness_overall]
-    print(min(fitness_overall))
+    population, population_metadata = topology_opt(population, population_metadata, max_iter=50)
+    population, population_metadata = parameter_opt(population, population_metadata)
+    print_min_fitness(population)
+
+    population, population_metadata = topology_opt(population, population_metadata, max_iter=50)
+    population, population_metadata = parameter_opt(population, population_metadata)
+    print_min_fitness(population)
+
 
 
 if __name__ == '__main__':
     file_name = './raw_netlist/RLC_low_pass.net'
     init_circuit = AdvanceCircuit(file_name)
-    population = optimization(init_circuit, 10)
 
-    s = time.time()
-    print(time.time() - s)
+    optimization(init_circuit, 500)
+    

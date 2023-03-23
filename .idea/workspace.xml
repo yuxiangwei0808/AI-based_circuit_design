@@ -2,11 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="5520895b-cb8e-4f0b-8729-9c509168f1c0" name="变更" comment="Add circuit coding for evolution">
-      <change afterPath="$PROJECT_DIR$/LPF_optimization.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/deployment.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/deployment.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/advance_graph.py" beforeDir="false" afterPath="$PROJECT_DIR$/advance_graph.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/find_trees.py" beforeDir="false" afterPath="$PROJECT_DIR$/find_trees.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -205,7 +201,7 @@
       <workItem from="1677477006572" duration="35698000" />
       <workItem from="1677931752602" duration="72000" />
       <workItem from="1678694446042" duration="8998000" />
-      <workItem from="1679299562073" duration="3807000" />
+      <workItem from="1679299562073" duration="7015000" />
     </task>
     <task id="LOCAL-00001" summary="update">
       <created>1673081883147</created>

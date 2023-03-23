@@ -154,3 +154,9 @@ def differential_circuits(c1, c2, c3, mutate_factor=1.):
             differential[k] = components_c3[k]
 
     return differential
+
+
+def print_min_fitness(population):
+    fitness_overall = list(population.values())
+    fitness_overall = [x[-1] for x in fitness_overall]
+    print(min(fitness_overall))
