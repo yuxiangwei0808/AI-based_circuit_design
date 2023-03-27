@@ -2,8 +2,8 @@
 <project version="4">
   <component name="WebServers">
     <option name="servers">
-      <webServer id="09cd39ee-f3bd-4aec-a478-673d65356ed6" name="FYP">
-        <fileTransfer accessType="SFTP" host="i-1.gpushare.com" port="4817" sshConfigId="205f392c-0931-4083-b782-b7040715f877" sshConfig="root@i-1.gpushare.com">
+      <webServer id="6c3d678d-fbd3-49fb-a658-c18980e5093d" name="FYP">
+        <fileTransfer accessType="SFTP" host="i-2.gpushare.com" port="42905" sshConfigId="28f34518-837f-45f1-9ba7-c73dd6f1e074" sshConfig="root@i-2.gpushare.com:42905 password">
           <advancedOptions>
             <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
           </advancedOptions>

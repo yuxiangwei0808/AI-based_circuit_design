@@ -125,7 +125,7 @@ def encode_circuit(circuit, with_parameter: bool):
     return label
 
 
-def select_population(population: dict, K=2):
+def select_population(population: dict, K=1):
     """select top K circutis from each topology"""
     circuit_fitness_dict = population
     if len(circuit_fitness_dict) > K:
@@ -150,13 +150,22 @@ def differential_circuits(c1, c2, c3, mutate_factor=1.):
     components_c3 = {k: c3._component_metadata[k][-1] for k in c3._component_metadata}
     differential = {k: components_c1[k] - components_c2[k] + mutate_factor * components_c3[k] for k in components_c1}
     for k in differential:
-        if differential[k] <= 0:
+        if differential[k] < 0:
+            differential[k] = abs(differential[k])
+        elif differential[k] == 0:
             differential[k] = components_c3[k]
 
     return differential
 
 
-def print_min_fitness(population):
-    fitness_overall = list(population.values())
-    fitness_overall = [x[-1] for x in fitness_overall]
-    print(min(fitness_overall))
+def save_circuit(population, top=5):
+    """save the circuits as checkpoint. TODO: fix pickle issue. Currently only save netlist files"""
+    sorted_population = dict(sorted(population.items(), key=lambda  item: item[-1][-1]))
+    labels = list(sorted_population.keys())
+
+    for i in range(top):
+        circuit, fitness = sorted_population[labels[i]][0]
+        print(f'circuit of fitness {fitness} saved')
+        fitness = str(fitness)[:5].replace('.', '_')
+        with open(f'./checkpoint/{fitness}.net', 'w') as f:
+            f.writelines(str(circuit))

@@ -10,12 +10,17 @@ Vout is set to be the voltage across node N002 and node 0.
 from advance_graph import AdvanceCircuit
 
 from lcapy import *
-from utils import transfer_func, encode_circuit, differential_circuits, select_population, print_min_fitness
+from utils import transfer_func, encode_circuit, differential_circuits, select_population, save_circuit
 import numpy as np
 import random
 from sympy import Piecewise, symbols
 from tqdm import tqdm
 import time
+import multiprocessing as mp
+import pickle
+import dill
+import joblib
+import traceback
 
 
 COMPONENT_TYPES = ['L', 'C', 'R']
@@ -137,68 +142,98 @@ def topology_opt(population, population_metadata, max_iter=100, recombination_ra
                     if fitness_mutated < fitness_target:  # substitute
                         population.pop(target_label_param)
                         mutate_label_parameter = encode_circuit(mutated_candidate, True)
-                        population[mutate_label_parameter] = [mutated_candidate, fitness_mutated]
+                        population.update({mutate_label_parameter: [mutated_candidate, fitness_mutated]})
+                        population_metadata[target_label_topo][-1].pop(target_label_param)
                         if flag == 0:
-                            population_metadata[target_label_topo][-1].pop(target_label_param)
                             population_metadata[mutated_label_topo][-1][mutate_label_parameter] = [mutated_candidate, fitness_mutated]
                         else:
                             population_metadata[mutated_label_topo] = \
                                 (Vin_tree, Vout_tree, {mutate_label_parameter: [mutated_candidate, fitness_mutated]})
             else:  # no change to the population
                 pass
-    return population, population_metadata
+
+    # iter through topologies and delete topology that has no corresponding circuit
+    population_metadata_copy = population_metadata.copy()
+    for label_topo in population_metadata:
+        if population_metadata[label_topo][-1] == {}:
+            population_metadata_copy.pop(label_topo)
+
+    return population, population_metadata_copy
 
 
-def parameter_opt(population, population_metadata, pop_size_per_topo=50, per_topo_iter=50, recombination_rate=0.5):
+def parameter_worker(population_metadata, label_topo, pop_size_per_topo=20, per_topo_iter=10, recombination_rate=0.5):
+    population_new, population_metadata_new = {}, {}
+    Vin_tree, Vout_tree, per_topo_pop = population_metadata[label_topo]
+    init_circuit = per_topo_pop[list(per_topo_pop.keys())[0]][0]
+    org_size = len(population_metadata[label_topo][-1])
+    print(f'begin generate population for the topology {label_topo}')
+    s = time.time()
+    for _ in range(pop_size_per_topo - org_size):
+        new_circuit = parameter_mutate(init_circuit)
+        new_tf = transfer_func(new_circuit, Vin_tree, Vout_tree)
+        new_fitness = fitness_func(new_tf)
+        label_param = encode_circuit(new_circuit, True)
+        per_topo_pop.update({label_param: [new_circuit, new_fitness]})
+
+    print(f'consume {time.time() - s}, begin optimize parameters')
+
+    for _ in range(per_topo_iter):
+        candidates = per_topo_pop.copy()
+        per_topo_pop_new = per_topo_pop.copy()
+        for label in per_topo_pop:
+            target, fitness_target = per_topo_pop[label]
+            cross_over = random.random()
+            if cross_over <= recombination_rate:
+                # mutate
+                candidates.pop(label)
+                x_1, x_2, x_3 = random.sample(list(candidates.keys()), 3)
+                x_1, x_2, x_3 = candidates[x_1][0], candidates[x_2][0], candidates[x_3][0]
+                candidate = x_3.deepcopy()
+
+                diff = differential_circuits(x_1, x_2, candidate)
+                for k in diff:
+                    candidate.alter_component_value(k, diff[k])
+
+                tf_candidate = transfer_func(candidate, Vin_tree, Vout_tree)
+                fitness_candidate = fitness_func(tf_candidate)
+
+                if fitness_candidate < fitness_target:
+                    label_param_candidate = encode_circuit(candidate, True)
+                    per_topo_pop_new.pop(label)
+                    per_topo_pop_new.update({label_param_candidate: [candidate, fitness_candidate]})
+                    if fitness_candidate < 1e-3:
+                        break
+                else:
+                    pass
+
+    # reduce the number of circuits in each topology. Default to top 1
+    per_topo_pop_new = select_population(per_topo_pop_new)
+    population_new.update(per_topo_pop_new)
+    population_metadata_new.update({label_topo: (Vin_tree, Vout_tree, per_topo_pop_new)})
+
+    return population_new, population_metadata_new
+
+
+def mp_worker(args):
+    population_metadata, label = args[0], args[1]
+    p, p_m = parameter_worker(population_metadata, label)
+    return p, p_m
+
+
+def parameter_opt(population, population_metadata, pop_size_per_topo=20, per_topo_iter=10, recombination_rate=0.5):
     """perform parameter optimization for each topology"""
     population_new, population_metadata_new = {}, {}
-    for label in population_metadata:
-        #  generate population
-        Vin_tree, Vout_tree, per_topo_pop = population_metadata[label]
-        init_circuit = per_topo_pop[list(per_topo_pop.keys())[0]][0]
-        org_size = len(population_metadata[label][-1])
-        for _ in tqdm(range(pop_size_per_topo - org_size), desc='generate a population for the topology'):
-            new_circuit = parameter_mutate(init_circuit)
-            new_tf = transfer_func(new_circuit, Vin_tree, Vout_tree)
-            new_fitness = fitness_func(new_tf)
-            label_param = encode_circuit(new_circuit, True)
-            per_topo_pop.update({label_param: [new_circuit, new_fitness]})
-        print('finished generating population for a topology')
-        print('begin optimization')
 
-        for _ in tqdm(range(per_topo_iter), desc='parameter optimize'):
-            candidates = per_topo_pop.copy()
-            per_topo_pop_new = per_topo_pop.copy()
-            for label in per_topo_pop:
-                target, fitness_target = per_topo_pop[label]
-                cross_over = random.random()
-                if cross_over <= recombination_rate:
-                    # mutate
-                    candidates.pop(label)
-                    x_1, x_2, x_3 = random.sample(list(candidates.keys()), 3)
-                    x_1, x_2, x_3 = candidates[x_1][0], candidates[x_2][0], candidates[x_3][0]
-                    candidate = x_3.deepcopy()
+    labels = list(population_metadata.keys())
+    args = [(population_metadata, label) for label in labels]
+    s = time.time()
+    with mp.pool.ThreadPool(mp.cpu_count()) as pool:
+        pop_per_topo = pool.map(mp_worker, args)
 
-                    diff = differential_circuits(x_1, x_2, candidate)
-                    for k in diff:
-                        candidate.alter_component_value(k, diff[k])
-
-                    tf_candidate = transfer_func(candidate, Vin_tree, Vout_tree)
-                    fitness_candidate = fitness_func(tf_candidate)
-
-                    if fitness_candidate < fitness_target:
-                        label_param_candidate = encode_circuit(candidate, True)
-                        per_topo_pop_new.pop(label)
-                        per_topo_pop_new.update({label_param_candidate: [candidate, fitness_candidate]})
-                        if fitness_candidate < 1e-3:
-                            break
-                    else:
-                        pass
-
-        # reduce the number of circuits in each topology. Default to top 2
-        per_topo_pop_new = select_population(per_topo_pop_new)
-        population_new.update(per_topo_pop_new)
-        population_metadata_new.update({label: (Vin_tree, Vout_tree, per_topo_pop_new)})
+    for p, p_m in pop_per_topo:
+        population_new.update(p)
+        population_metadata_new.update(p_m)
+    print(f'totally consume:{time.time() - s}')
 
     return population_new, population_metadata_new
 
@@ -231,23 +266,21 @@ def optimization(init_circuit, init_pop_size):
         init_population_metadata[label][-1][label_parameter].append(fitness)
         init_population.update({label_parameter: [new_circuit, fitness]})
 
-    population, population_metadata = topology_opt(init_population, init_population_metadata, max_iter=50)
+    population, population_metadata = topology_opt(init_population, init_population_metadata, max_iter=30)
     population, population_metadata = parameter_opt(population, population_metadata)
-    print_min_fitness(population)
+    save_circuit(population)
 
-    population, population_metadata = topology_opt(population, population_metadata, max_iter=50)
+    population, population_metadata = topology_opt(population, population_metadata, max_iter=30)
     population, population_metadata = parameter_opt(population, population_metadata)
-    print_min_fitness(population)
+    save_circuit(population)
 
-    population, population_metadata = topology_opt(population, population_metadata, max_iter=50)
+    population, population_metadata = topology_opt(population, population_metadata, max_iter=30)
     population, population_metadata = parameter_opt(population, population_metadata)
-    print_min_fitness(population)
-
+    save_circuit(population)
 
 
 if __name__ == '__main__':
     file_name = './raw_netlist/RLC_low_pass.net'
     init_circuit = AdvanceCircuit(file_name)
 
-    optimization(init_circuit, 500)
-    
+    optimization(init_circuit, 50)
