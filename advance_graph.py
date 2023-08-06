@@ -6,7 +6,7 @@ import copy
 import networkx as nx
 import matplotlib.pyplot as plt
 
-from find_trees import find_all_spanning_trees_mp, find_all_spanning_trees, find_all_two_trees
+from find_trees import find_all_spanning_trees, find_all_two_trees
 from utils import *
 
 s = symbols('s')
@@ -124,13 +124,31 @@ class AdvanceCircuit(Circuit):
         self = connect_two_node(self, node_pair, component_metadata)
         self._update_networkx()
 
+    def connect_three_nodes(self, nodes: list, name: str):
+        self = connect_three_nodes(self, nodes, name)
+        self._update_networkx()
+
     def insert_new_node(self, node_pair: list, component_metadata: list):
         self = insert_new_node(self, node_pair, component_metadata)
         self._update_networkx()
 
+    def insert_new_node_bjt(self, nodes: list, bjt_name: str):
+        self = insert_new_node_bjt(self, nodes, bjt_name)
+        self._update_networkx()
+
+    def insert_new_node_to_bjt(self, nodes: list, component_name: str, bjt_name: str, new_component_value: str = None):
+        self = insert_new_node_to_bjt(self, nodes, component_name, bjt_name, new_component_value)
+        self._update_networkx()
+
     def change_element_connection(self, element, new_pair):
-        value = self._component_metadata[element][-1]
-        self = change_element_connection(self, element, new_pair, value)
+        if element[0] == 'Q':
+            assert len(new_pair) == 3
+            self = change_element_connection(self, element, new_pair)
+        else:
+            value = self._component_metadata[element][-1]
+            self = change_element_connection(self, element, new_pair, value)
+
+        self = connect_standalone_node_to_ground(self, in_out_nodes=['NC_01', 'out'])
         self._update_networkx()
 
     def alter_component_value(self, component, value):
@@ -138,6 +156,11 @@ class AdvanceCircuit(Circuit):
         ist = [component, nodes[0], nodes[1], str(value)]
         ist = ' '.join(ist)
         self.add(ist)
+
+    def delete_component(self, component: str):
+        self.remove(component)
+        self = connect_standalone_node_to_ground(self, in_out_nodes=['NC_01', 'out'])
+        self._update_networkx()
 
     def _find_component_value(self, edge: tuple):
         # find component admittance
@@ -178,9 +201,8 @@ class AdvanceCircuit(Circuit):
     def _find_component_by_nodes(self, node_pair: tuple):
         for c in self.elements.keys():
             component = self.elements[c]
-            if not component.is_voltage_source:
-                if set(component.relnodes) == set(node_pair):
-                    return component.relnodes, component.relname, component
+            if set(component.relnodes) == set(node_pair):
+                return component.relnodes, component.relname, component
         print('no component between the nodes')
         raise Exception
 
@@ -193,7 +215,7 @@ class AdvanceCircuit(Circuit):
         """use dict to store all components' metadata, currently exclude source"""
         metadata = {}
         for c in self.elements.keys():
-            if len(self.elements[c].nodenames) > 1:
+            if len(self.elements[c].nodenames) > 1 and c[0] != 'Q':
                 component = self.elements[c]
                 nodes = component.relnodes
                 name, c_type = component.name, component.type
@@ -230,7 +252,7 @@ class AdvanceCircuit(Circuit):
 
 
 if __name__ == '__main__':
-    file_name = './raw_netlist/figure26.net'
+    file_name = './raw_netlist/RLC_low_pass.net'
     advance_circuit = AdvanceCircuit(file_name)
     tf = transfer_func(advance_circuit, [['0'], ['NC_01']], [['0'], ['N002']])
 
